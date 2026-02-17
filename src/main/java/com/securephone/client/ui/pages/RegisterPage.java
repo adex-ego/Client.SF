@@ -232,7 +232,7 @@ public class RegisterPage extends JPanel {
                 }
                 
                 // Envoyer la requête d'inscription
-                connectionManager.register(username, password);
+                connectionManager.register(username, password, email);
             } else {
                 showError("Erreur d'initialisation");
             }

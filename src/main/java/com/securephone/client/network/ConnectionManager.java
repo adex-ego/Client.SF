@@ -138,12 +138,15 @@ public class ConnectionManager {
 		}
 	}
 
-	public void register(String username, String password) {
+	public void register(String username, String password, String email) {
 		try {
 			ChatPacket packet = new ChatPacket(MessageType.REGISTER_REQUEST);
 			JSONObject data = new JSONObject();
 			data.put("username", username);
 			data.put("password", password);
+			if (email != null && !email.isEmpty()) {
+				data.put("email", email);
+			}
 			data.put("enable_2fa", enableTwoFaByDefault);
 			packet.setData(data);
 			chatClient.send(packet.toJson());

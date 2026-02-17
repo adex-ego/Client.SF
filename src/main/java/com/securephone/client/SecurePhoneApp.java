@@ -47,8 +47,8 @@ public class SecurePhoneApp {
                 SwingUtilities.invokeLater(() -> {
                     Logger.info("✅ Login réussi: " + session.getUsername());
                     mainFrame.getLoginFrame().clearError();
-                    // Afficher la page 2FA
-                    mainFrame.showTwoFAPage(session.getUsername());
+                    // Afficher la page principale de l'application
+                    mainFrame.showAppPage();
                 });
             }
 
