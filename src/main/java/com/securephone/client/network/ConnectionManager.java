@@ -41,6 +41,10 @@ public class ConnectionManager {
 		void onError(String message);
 	}
 
+	public interface NotificationListener {
+		void onNotification(String type, String title, String message, JSONObject data);
+	}
+
 	private final WebSocketClient chatClient = new WebSocketClient();
 	private final AudioClient audioClient = new AudioClient();
 	private final com.securephone.client.video.VideoClient videoClient = new com.securephone.client.video.VideoClient();
@@ -50,6 +54,7 @@ public class ConnectionManager {
 	private ContactListener contactListener;
 	private StatusListener statusListener;
 	private ErrorListener errorListener;
+	private NotificationListener notificationListener;
 
 	private UserSession session = new UserSession();
 
@@ -98,6 +103,10 @@ public class ConnectionManager {
 
 	public void setErrorListener(ErrorListener listener) {
 		this.errorListener = listener;
+	}
+
+	public void setNotificationListener(NotificationListener listener) {
+		this.notificationListener = listener;
 	}
 
 	public boolean connect() {
@@ -223,6 +232,147 @@ public class ConnectionManager {
 		}
 	}
 
+	public void searchContacts(String query, SearchResultListener listener) {
+		if (!session.isLoggedIn()) {
+			if (listener != null) {
+				listener.onSearchResult(new ArrayList<>());
+			}
+			return;
+		}
+		try {
+			String url = "http://" + host + ":8000/api/contacts/search?q=" + 
+				java.net.URLEncoder.encode(query, "UTF-8") + 
+				"&session_id=" + session.getSessionId();
+			
+			java.net.URL apiUrl = new java.net.URL(url);
+			java.net.HttpURLConnection conn = (java.net.HttpURLConnection) apiUrl.openConnection();
+			conn.setRequestMethod("GET");
+			conn.setConnectTimeout(5000);
+			conn.setReadTimeout(5000);
+			
+			int responseCode = conn.getResponseCode();
+			if (responseCode == 200) {
+				java.io.BufferedReader reader = new java.io.BufferedReader(
+					new java.io.InputStreamReader(conn.getInputStream())
+				);
+				StringBuilder response = new StringBuilder();
+				String line;
+				while ((line = reader.readLine()) != null) {
+					response.append(line);
+				}
+				reader.close();
+				
+				JSONObject json = new JSONObject(response.toString());
+				List<SearchResult> results = new ArrayList<>();
+				
+				if ("success".equals(json.optString("status"))) {
+					JSONArray users = json.optJSONArray("users");
+					if (users != null) {
+						for (int i = 0; i < users.length(); i++) {
+							JSONObject user = users.getJSONObject(i);
+							SearchResult result = new SearchResult(
+								user.optInt("id"),
+								user.optString("username"),
+								user.optString("email"),
+								user.optString("status", "offline"),
+								user.optBoolean("is_contact", false)
+							);
+							results.add(result);
+						}
+					}
+				}
+				
+				if (listener != null) {
+					listener.onSearchResult(results);
+				}
+			} else {
+				Logger.error("Erreur recherche contacts: " + responseCode);
+				if (listener != null) {
+					listener.onSearchResult(new ArrayList<>());
+				}
+			}
+		} catch (Exception e) {
+			Logger.error("Erreur recherche contacts: " + e.getMessage());
+			if (listener != null) {
+				listener.onSearchResult(new ArrayList<>());
+			}
+		}
+	}
+
+	public void addContact(int contactId, String nickname, AddContactListener listener) {
+		if (!session.isLoggedIn()) {
+			if (listener != null) {
+				listener.onAddContactResult(false, "Non connecté");
+			}
+			return;
+		}
+		try {
+			String url = "http://" + host + ":8000/api/contacts/add?session_id=" + 
+				session.getSessionId() + "&contact_id=" + contactId + 
+				"&nickname=" + java.net.URLEncoder.encode(nickname, "UTF-8");
+			
+			java.net.URL apiUrl = new java.net.URL(url);
+			java.net.HttpURLConnection conn = (java.net.HttpURLConnection) apiUrl.openConnection();
+			conn.setRequestMethod("POST");
+			conn.setConnectTimeout(5000);
+			conn.setReadTimeout(5000);
+			
+			int responseCode = conn.getResponseCode();
+			if (responseCode == 200) {
+				java.io.BufferedReader reader = new java.io.BufferedReader(
+					new java.io.InputStreamReader(conn.getInputStream())
+				);
+				StringBuilder response = new StringBuilder();
+				String line;
+				while ((line = reader.readLine()) != null) {
+					response.append(line);
+				}
+				reader.close();
+				
+				JSONObject json = new JSONObject(response.toString());
+				boolean success = "success".equals(json.optString("status"));
+				String message = json.optString("message", success ? "Contact ajouté" : "Erreur");
+				
+				if (listener != null) {
+					listener.onAddContactResult(success, message);
+				}
+			} else {
+				if (listener != null) {
+					listener.onAddContactResult(false, "Erreur serveur");
+				}
+			}
+		} catch (Exception e) {
+			Logger.error("Erreur ajout contact: " + e.getMessage());
+			if (listener != null) {
+				listener.onAddContactResult(false, e.getMessage());
+			}
+		}
+	}
+
+	public static class SearchResult {
+		public int id;
+		public String username;
+		public String email;
+		public String status;
+		public boolean isContact;
+
+		public SearchResult(int id, String username, String email, String status, boolean isContact) {
+			this.id = id;
+			this.username = username;
+			this.email = email;
+			this.status = status;
+			this.isContact = isContact;
+		}
+	}
+
+	public interface SearchResultListener {
+		void onSearchResult(List<SearchResult> results);
+	}
+
+	public interface AddContactListener {
+		void onAddContactResult(boolean success, String message);
+	}
+
 	public void startAudio() {
 		if (!session.isLoggedIn()) {
 			return;
@@ -282,12 +432,63 @@ public class ConnectionManager {
 			}
 
 			if (type == MessageType.TEXT_MESSAGE) {
-				String sender = data.optString("sender_name", "inconnu");
-				String content = data.optString("content", "");
-				long timestamp = data.optLong("timestamp", System.currentTimeMillis());
-				ChatMessage chatMessage = new ChatMessage(sender, content, timestamp, "");
-				if (chatListener != null) {
-					chatListener.onMessage(chatMessage);
+				// Check if this is a notification or a regular message
+				String notificationType = data.optString("type", "");
+				if ("message".equals(notificationType)) {
+					// It's a notification
+					if (notificationListener != null) {
+						notificationListener.onNotification("message", 
+							data.optString("title", "Message"),
+							data.optString("message", ""),
+							data);
+					}
+				} else if (!notificationType.isEmpty()) {
+					// It's some other notification
+					if (notificationListener != null) {
+						notificationListener.onNotification(notificationType,
+							data.optString("title", "Notification"),
+							data.optString("message", ""),
+							data);
+					}
+				} else {
+					// Regular chat message
+					String sender = data.optString("sender_name", "inconnu");
+					String content = data.optString("content", "");
+					long timestamp = data.optLong("timestamp", System.currentTimeMillis());
+					ChatMessage chatMessage = new ChatMessage(sender, content, timestamp, "");
+					if (chatListener != null) {
+						chatListener.onMessage(chatMessage);
+					}
+				}
+				return;
+			}
+
+			if (type == MessageType.CONTACT_REQUEST) {
+				if (notificationListener != null) {
+					notificationListener.onNotification("contact_request",
+						data.optString("title", "Contact Request"),
+						data.optString("message", ""),
+						data);
+				}
+				return;
+			}
+
+			if (type == MessageType.CONTACT_ACCEPT) {
+				if (notificationListener != null) {
+					notificationListener.onNotification("contact_accepted",
+						data.optString("title", "Contact Accepted"),
+						data.optString("message", ""),
+						data);
+				}
+				return;
+			}
+
+			if (type == MessageType.CONTACT_REJECT) {
+				if (notificationListener != null) {
+					notificationListener.onNotification("contact_rejected",
+						data.optString("title", "Contact Rejected"),
+						data.optString("message", ""),
+						data);
 				}
 				return;
 			}

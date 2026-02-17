@@ -165,6 +165,24 @@ public class UIManager {
         return currentTheme == Theme.DARK ? DarkTheme.PRIMARY : LightTheme.PRIMARY;
     }
     
+    public static Color getPrimaryVariant() {
+        // Couleur un peu plus sombre/claire que le primary pour hover effect
+        Color primary = getPrimary();
+        if (currentTheme == Theme.DARK) {
+            return new Color(
+                Math.min(primary.getRed() + 30, 255),
+                Math.min(primary.getGreen() + 30, 255),
+                Math.min(primary.getBlue() + 30, 255)
+            );
+        } else {
+            return new Color(
+                Math.max(primary.getRed() - 30, 0),
+                Math.max(primary.getGreen() - 30, 0),
+                Math.max(primary.getBlue() - 30, 0)
+            );
+        }
+    }
+    
     public static Color getBorder() {
         return currentTheme == Theme.DARK ? DarkTheme.BORDER : LightTheme.BORDER;
     }

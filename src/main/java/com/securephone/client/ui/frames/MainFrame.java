@@ -2,7 +2,12 @@ package com.securephone.client.ui.frames;
 
 import javax.swing.*;
 import java.awt.*;
+import com.securephone.client.SecurePhoneApp;
 import com.securephone.client.ui.UIManager;
+import com.securephone.client.ui.components.Sidebar;
+import com.securephone.client.ui.components.NotificationsPopup;
+import com.securephone.client.ui.components.SearchContactsPopup;
+import com.securephone.client.ui.components.SettingsPopup;
 import com.securephone.client.ui.pages.AppPage;
 import com.securephone.client.ui.pages.LoginPage;
 import com.securephone.client.ui.pages.RegisterPage;
@@ -24,7 +29,10 @@ public class MainFrame extends JFrame {
     // ========== COMPOSANTS ==========
     private JPanel mainPanel;
     private CardLayout cardLayout;
-    private JPanel settingsPanel;
+    private Sidebar sidebar;
+    private NotificationsPopup notificationsPopup;
+    private SearchContactsPopup searchContactsPopup;
+    private SettingsPopup settingsPopup;
     
     // ========== PAGES ==========
     private LoginPage loginPage;
@@ -48,7 +56,8 @@ public class MainFrame extends JFrame {
         initWindow();
         setupLayout();
         initPages();
-        setupSettingsPanel();
+        setupPopups();
+        setupSidebarActions();
         showLoginPage();
     }
     
@@ -107,36 +116,11 @@ public class MainFrame extends JFrame {
         JPanel contentPane = new JPanel(new BorderLayout());
         contentPane.add(mainPanel, BorderLayout.CENTER);
         
-        // Ajouter le settings panel sur la droite (petit panneau)
-        setupSettingsPanel();
-        contentPane.add(settingsPanel, BorderLayout.EAST);
+        // Ajouter la sidebar sur la gauche
+        sidebar = new Sidebar();
+        contentPane.add(sidebar, BorderLayout.WEST);
         
         setContentPane(contentPane);
-    }
-    
-    private void setupSettingsPanel() {
-        settingsPanel = new JPanel();
-        settingsPanel.setLayout(new BoxLayout(settingsPanel, BoxLayout.Y_AXIS));
-        settingsPanel.setBackground(UIManager.getSurface());
-        settingsPanel.setPreferredSize(new Dimension(60, getHeight()));
-        settingsPanel.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, UIManager.getBorder()));
-        
-        // Bouton pour basculer le thème
-        JButton themeToggleButton = new JButton("🌓");
-        themeToggleButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        themeToggleButton.setMaximumSize(new Dimension(50, 50));
-        themeToggleButton.setMargin(new Insets(10, 10, 10, 10));
-        themeToggleButton.setBackground(UIManager.getPrimary());
-        themeToggleButton.setForeground(UIManager.getOnPrimary());
-        themeToggleButton.setBorderPainted(false);
-        themeToggleButton.setFocusPainted(false);
-        themeToggleButton.setToolTipText("Toggle light/dark mode");
-        
-        themeToggleButton.addActionListener(e -> toggleTheme());
-        
-        settingsPanel.add(Box.createVerticalStrut(10));
-        settingsPanel.add(themeToggleButton);
-        settingsPanel.add(Box.createVerticalGlue());
     }
     
     private void initPages() {
@@ -151,6 +135,98 @@ public class MainFrame extends JFrame {
         mainPanel.add(appPage, APP_PAGE);
     }
     
+    private void setupPopups() {
+        // Notifications popup
+        notificationsPopup = new NotificationsPopup(this);
+        
+        // Search contacts popup
+        searchContactsPopup = new SearchContactsPopup(this);
+        
+        // Settings popup
+        settingsPopup = new SettingsPopup(this);
+    }
+    
+    private void setupSidebarActions() {
+        // Home button - show app page
+        sidebar.getHomeButton().addActionListener(e -> {
+            showAppPage("");
+            notificationsPopup.setVisible(false);
+            searchContactsPopup.setVisible(false);
+            settingsPopup.setVisible(false);
+        });
+        
+        // Notifications button - toggle notification popup
+        sidebar.getNotificationsButton().addActionListener(e -> {
+            if (notificationsPopup.isVisible()) {
+                notificationsPopup.setVisible(false);
+            } else {
+                notificationsPopup.setVisible(true);
+            }
+        });
+        
+        // Contacts button - toggle search contacts popup
+        sidebar.getContactsButton().addActionListener(e -> {
+            if (searchContactsPopup.isVisible()) {
+                searchContactsPopup.setVisible(false);
+            } else {
+                searchContactsPopup.setVisible(true);
+                searchContactsPopup.clearSearch();
+            }
+        });
+        
+        // Settings button - toggle settings popup
+        sidebar.getSettingsButton().addActionListener(e -> {
+            if (settingsPopup.isVisible()) {
+                settingsPopup.setVisible(false);
+            } else {
+                settingsPopup.setVisible(true);
+            }
+        });
+        
+        // Search contacts handler
+        searchContactsPopup.setOnSearch(query -> {
+            if (!query.isEmpty()) {
+                SecurePhoneApp.getConnectionManager().searchContacts(query, results -> {
+                    searchContactsPopup.setSearchResults(results.stream()
+                        .map(r -> new SearchContactsPopup.ContactResult(
+                            r.id, r.username, r.email, r.status, r.isContact
+                        ))
+                        .collect(java.util.stream.Collectors.toList())
+                    );
+                });
+            }
+        });
+        
+        // Add contact handler
+        searchContactsPopup.setOnAddContact(contact -> {
+            SecurePhoneApp.getConnectionManager().addContact(contact.id, contact.username, (success, message) -> {
+                if (success) {
+                    JOptionPane.showMessageDialog(this, "Contact ajouté avec succès!", "Succès", JOptionPane.INFORMATION_MESSAGE);
+                    searchContactsPopup.clearSearch();
+                } else {
+                    JOptionPane.showMessageDialog(this, "Erreur: " + message, "Erreur", JOptionPane.ERROR_MESSAGE);
+                }
+            });
+        });
+        
+        // Theme toggle in settings
+        settingsPopup.setOnThemeToggle(() -> {
+            toggleTheme();
+        });
+        
+        // Logout in settings
+        settingsPopup.setOnLogout(() -> {
+            // Logout du serveur
+            SecurePhoneApp.getConnectionManager().logout();
+            
+            // Retour au login
+            showLoginPage();
+            notificationsPopup.setVisible(false);
+            searchContactsPopup.setVisible(false);
+            settingsPopup.setVisible(false);
+        });
+    }
+    
     // ========== GETTERS ==========
     public LoginPage getLoginFrame() {
         return loginPage;
@@ -162,6 +238,26 @@ public class MainFrame extends JFrame {
     
     public TwoFAPage getTwoFAFrame() {
         return twoFAPage;
+    }
+    
+    public AppPage getAppFrame() {
+        return appPage;
+    }
+    
+    public Sidebar getSidebar() {
+        return sidebar;
+    }
+    
+    public NotificationsPopup getNotificationsPopup() {
+        return notificationsPopup;
+    }
+    
+    public SearchContactsPopup getSearchContactsPopup() {
+        return searchContactsPopup;
+    }
+    
+    public SettingsPopup getSettingsPopup() {
+        return settingsPopup;
     }
     
     // ========== NAVIGATION ==========
@@ -178,7 +274,8 @@ public class MainFrame extends JFrame {
         cardLayout.show(mainPanel, TWOFА_PAGE);
     }
     
-    public void showAppPage() {
+    public void showAppPage(String username) {
+        appPage.setUsername(username);
         cardLayout.show(mainPanel, APP_PAGE);
     }
     
@@ -191,8 +288,7 @@ public class MainFrame extends JFrame {
     private void updateTheme() {
         // Mettre à jour les couleurs de tous les composants
         mainPanel.setBackground(UIManager.getBackground());
-        settingsPanel.setBackground(UIManager.getSurface());
-        settingsPanel.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, UIManager.getBorder()));
+        sidebar.setBackground(UIManager.getPrimary());
         getContentPane().setBackground(UIManager.getBackground());
         
         // Mettre à jour récursivement

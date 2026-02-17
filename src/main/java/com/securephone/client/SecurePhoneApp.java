@@ -2,12 +2,15 @@ package com.securephone.client;
 
 import javax.swing.*;
 import com.securephone.client.ui.frames.MainFrame;
+import com.securephone.client.ui.components.NotificationToast;
 import com.securephone.client.network.ConnectionManager;
+import com.securephone.client.webpush.PushManager;
 import com.securephone.client.utils.Logger;
 
 public class SecurePhoneApp {
     
     private static ConnectionManager connectionManager;
+    private static PushManager pushManager;
     private static MainFrame mainFrame;
     
     public static void main(String[] args) {
@@ -19,6 +22,10 @@ public class SecurePhoneApp {
                 // Initialiser la connexion au serveur
                 connectionManager = new ConnectionManager();
                 setupConnectionListeners();
+                
+                // Initialiser le gestionnaire de notifications push
+                pushManager = new PushManager();
+                setupPushListeners();
                 
                 // Afficher la frame
                 mainFrame.setVisible(true);
@@ -48,7 +55,10 @@ public class SecurePhoneApp {
                     Logger.info("✅ Login réussi: " + session.getUsername());
                     mainFrame.getLoginFrame().clearError();
                     // Afficher la page principale de l'application
-                    mainFrame.showAppPage();
+                    mainFrame.showAppPage(session.getUsername());
+                    
+                    // Charger les contacts
+                    connectionManager.requestContacts();
                 });
             }
 
@@ -87,6 +97,32 @@ public class SecurePhoneApp {
             }
         });
         
+        // Contact listener
+        connectionManager.setContactListener(contacts -> {
+            SwingUtilities.invokeLater(() -> {
+                mainFrame.getAppFrame().displayContacts(contacts);
+            });
+        });
+        
+        // Notification listener
+        connectionManager.setNotificationListener((type, title, message, data) -> {
+            SwingUtilities.invokeLater(() -> {
+                // Afficher toast notification
+                NotificationToast.Type toastType = parseNotificationType(type);
+                NotificationToast toast = new NotificationToast(title, message, toastType);
+                toast.setVisible(true);
+                
+                // Ajouter à la liste des notifications
+                mainFrame.getNotificationsPopup().addNotification(title, message, type);
+                
+                // Mettre à jour le badge
+                int count = mainFrame.getNotificationsPopup().getNotificationCount();
+                mainFrame.getSidebar().setNotificationCount(count);
+                
+                Logger.info("🔔 Notification reçue: " + title);
+            });
+        });
+        
         // Error listener
         connectionManager.setErrorListener(message -> {
             SwingUtilities.invokeLater(() -> {
@@ -95,7 +131,50 @@ public class SecurePhoneApp {
         });
     }
     
+    private static void setupPushListeners() {
+        pushManager.addListener((title, message, type) -> {
+            SwingUtilities.invokeLater(() -> {
+                // Afficher toast notification
+                NotificationToast toast = new NotificationToast(title, message, parseNotificationType(type));
+                toast.setVisible(true);
+                
+                // Ajouter à la liste des notifications
+                mainFrame.getNotificationsPopup().addNotification(title, message, type);
+                
+                // Mettre à jour le badge
+                int count = mainFrame.getNotificationsPopup().getNotificationCount();
+                mainFrame.getSidebar().setNotificationCount(count);
+                
+                Logger.info("🔔 Notification reçue: " + title);
+            });
+        });
+    }
+    
+    private static NotificationToast.Type parseNotificationType(String type) {
+        if (type == null) return NotificationToast.Type.INFO;
+        switch(type.toLowerCase()) {
+            case "contact_request":
+                return NotificationToast.Type.INFO;
+            case "message":
+                return NotificationToast.Type.INFO;
+            case "call":
+                return NotificationToast.Type.WARNING;
+            case "accepted":
+                return NotificationToast.Type.SUCCESS;
+            default:
+                return NotificationToast.Type.INFO;
+        }
+    }
+    
     public static ConnectionManager getConnectionManager() {
         return connectionManager;
+    }
+    
+    public static PushManager getPushManager() {
+        return pushManager;
+    }
+    
+    public static MainFrame getMainFrame() {
+        return mainFrame;
     }
 }
