@@ -55,8 +55,7 @@ public class SecurePhoneApp {
             @Override
             public void onLoginRequires2FA(String message) {
                 SwingUtilities.invokeLater(() -> {
-                    Logger.warn("⚠️ 2FA requis: " + message);
-                    // Extraire le username du message ou afficher la page 2FA
+                    // Afficher la page 2FA
                     mainFrame.showTwoFAPage("");
                 });
             }

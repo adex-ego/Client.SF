@@ -170,7 +170,6 @@ public class ConnectionManager {
 			JSONObject data = new JSONObject();
 			data.put("code", code);
 			packet.setData(data);
-			Logger.info("📤 Envoi code 2FA: " + code);
 			chatClient.send(packet.toJson());
 		} catch (Exception e) {
 			Logger.error("❌ Erreur envoi 2FA: " + e.getMessage());
@@ -266,8 +265,6 @@ public class ConnectionManager {
 			ChatPacket packet = ChatPacket.fromJson(message);
 			MessageType type = packet.getType();
 			JSONObject data = packet.getData();
-			
-			Logger.debug("📨 Message reçu: " + type);
 
 			if (type == MessageType.LOGIN_RESPONSE) {
 				handleLoginResponse(data);
@@ -370,19 +367,16 @@ public class ConnectionManager {
 
 	private void handleVerify2FAResponse(JSONObject data) {
 		String status = data.optString("status", "error");
-		Logger.info("📥 Réponse 2FA: " + status);
 		if ("success".equals(status)) {
 			String sessionId = data.optString("session_id");
 			int userId = data.optInt("user_id");
 			String username = data.optString("username");
 			session = new UserSession(sessionId, userId, username);
-			Logger.info("✅ 2FA réussi, utilisateur: " + username);
 
 			if (authListener != null) {
 				authListener.onLoginSuccess(session);
 			}
 		} else {
-			Logger.warn("⚠️ 2FA échoué: " + data.optString("message", "Erreur"));
 			if (authListener != null) {
 				authListener.onLoginFailed(data.optString("message", "Vérification 2FA échouée"));
 			}
