@@ -1,0 +1,126 @@
+{
+  "app": {
+    "name": "SecurePhone",
+    "version": "1.0.0",
+    "environment": "development"
+  },
+  
+  "ui": {
+    "theme": "dark",
+    "language": "fr",
+    "notifications": {
+      "enabled": true,
+      "duration": 5000,
+      "position": "bottom-right",
+      "showOnMessageReceived": true,
+      "showOnCallIncoming": true,
+      "showOnError": true
+    },
+    "sounds": {
+      "enabled": true,
+      "masterVolume": 0.8,
+      "messageReceivedSound": true,
+      "messageSentSound": false,
+      "callIncomingSound": true,
+      "callConnectedSound": true,
+      "callEndedSound": true,
+      "errorSound": true,
+      "buttonClickSound": false
+    },
+    "chat": {
+      "showTimestamps": true,
+      "timestampFormat": "HH:mm",
+      "showAvatars": true,
+      "messageBubbleStyle": "modern",
+      "maxMessageLength": 2000,
+      "autoScroll": true,
+      "showTypingIndicator": true
+    },
+    "video": {
+      "defaultResolution": "720p",
+      "defaultFrameRate": 30,
+      "mirrorLocalVideo": true,
+      "showConnectionQuality": true
+    },
+    "audio": {
+      "pushToTalk": true,
+      "voiceActivation": false,
+      "voiceActivationThreshold": 0.3,
+      "echoCancellation": true,
+      "noiseSuppression": true,
+      "autoGainControl": true
+    }
+  },
+  
+  "network": {
+    "server": {
+      "host": "localhost",
+      "port": 8080,
+      "useSSL": false
+    },
+    "websocket": {
+      "port": 8081,
+      "reconnectAttempts": 5,
+      "reconnectDelay": 3000,
+      "pingInterval": 30000
+    },
+    "udp": {
+      "audioPortRange": {
+        "start": 50000,
+        "end": 50010
+      },
+      "videoPortRange": {
+        "start": 50020,
+        "end": 50030
+      }
+    },
+    "timeout": {
+      "connection": 10000,
+      "request": 5000,
+      "keepAlive": 60000
+    }
+  },
+  
+  "security": {
+    "twoFactorAuth": {
+      "enabled": true,
+      "method": "console",
+      "codeLength": 4
+    },
+    "encryption": {
+      "enabled": true,
+      "algorithm": "AES-256-CBC"
+    },
+    "session": {
+      "timeout": 3600000,
+      "rememberMe": false,
+      "autoLogout": true
+    }
+  },
+  
+  "performance": {
+    "cache": {
+      "enabled": true,
+      "maxSize": 100,
+      "ttl": 300000
+    },
+    "logging": {
+      "level": "DEBUG",
+      "console": true,
+      "file": true,
+      "maxFileSize": "10MB"
+    }
+  },
+  
+  "defaults": {
+    "status": "online",
+    "presence": "available",
+    "avatar": "default_avatar.png"
+  },
+  
+  "experimental": {
+    "screenSharing": false,
+    "fileTransfer": false,
+    "groupVideo": false
+  }
+}
