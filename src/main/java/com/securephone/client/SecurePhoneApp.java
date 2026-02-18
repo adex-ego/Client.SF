@@ -16,12 +16,12 @@ public class SecurePhoneApp {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
-                // Créer la frame
-                mainFrame = new MainFrame();
-                
-                // Initialiser la connexion au serveur
+                // Initialiser la connexion au serveur AVANT la frame
                 connectionManager = new ConnectionManager();
                 setupConnectionListeners();
+                
+                // Créer la frame
+                mainFrame = new MainFrame();
                 
                 // Initialiser le gestionnaire de notifications push
                 pushManager = new PushManager();
