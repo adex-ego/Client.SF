@@ -5,6 +5,8 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import com.securephone.client.models.Contact;
 import com.securephone.client.ui.UIManager;
 import com.securephone.client.ui.frames.MainFrame;
@@ -35,6 +37,9 @@ public class AppPage extends JPanel {
     // Track selected contact
     private String selectedContactName = null;
     private List<Contact> allContacts = new ArrayList<>();
+    
+    // Message history per contact
+    private Map<String, StringBuilder> messageHistory = new HashMap<>();
     
     public AppPage(MainFrame mainFrame) {
         this.mainFrame = mainFrame;
@@ -246,7 +251,20 @@ public class AppPage extends JPanel {
         if (cm != null) {
             cm.setChatListener(message -> {
                 SwingUtilities.invokeLater(() -> {
-                    appendMessage("[" + message.getSender() + "]: " + message.getContent());
+                    String senderName = message.getSender();
+                    String messageText = "[" + senderName + "]: " + message.getContent();
+                    
+                    // Save to sender's history
+                    StringBuilder history = messageHistory.computeIfAbsent(senderName, k -> new StringBuilder());
+                    if (history.length() > 0) {
+                        history.append("\n");
+                    }
+                    history.append(messageText);
+                    
+                    // Display in chat area if sender is currently selected
+                    if (senderName.equals(selectedContactName)) {
+                        appendMessage(messageText);
+                    }
                 });
             });
         }
@@ -255,7 +273,16 @@ public class AppPage extends JPanel {
     private void selectContact(String contactName) {
         this.selectedContactName = contactName;
         selectedContactLabel.setText("Chat avec: " + contactName);
-        chatArea.setText("");
+        
+        // Load or initialize history for this contact
+        String history = messageHistory.computeIfAbsent(contactName, k -> new StringBuilder()).toString();
+        chatArea.setText(history);
+        
+        // Auto scroll to bottom
+        if (chatArea.getDocument().getLength() > 0) {
+            chatArea.setCaretPosition(chatArea.getDocument().getLength());
+        }
+        
         messageInput.setEnabled(true);
         sendButton.setEnabled(true);
         audioCallButton.setEnabled(true);
@@ -309,6 +336,16 @@ public class AppPage extends JPanel {
     }
     
     private void appendMessage(String text) {
+        // Save to history if a contact is selected
+        if (selectedContactName != null) {
+            StringBuilder history = messageHistory.computeIfAbsent(selectedContactName, k -> new StringBuilder());
+            if (history.length() > 0) {
+                history.append("\n");
+            }
+            history.append(text);
+        }
+        
+        // Display in chat area
         chatArea.append(text + "\n");
         // Auto scroll to bottom
         chatArea.setCaretPosition(chatArea.getDocument().getLength());
