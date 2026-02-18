@@ -33,6 +33,7 @@ public class MainFrame extends JFrame {
     private NotificationsPopup notificationsPopup;
     private SearchContactsPopup searchContactsPopup;
     private SettingsPopup settingsPopup;
+    private JDialog activeCallDialog;
     
     // ========== PAGES ==========
     private LoginPage loginPage;
@@ -276,7 +277,44 @@ public class MainFrame extends JFrame {
     
     public void showAppPage(String username) {
         appPage.setUsername(username);
+        // Set up chat listeners now that ConnectionManager is ready
+        appPage.setupChatListeners();
         cardLayout.show(mainPanel, APP_PAGE);
+    }
+    
+    public void showActiveCallUI(String callerId, String callType) {
+        // Afficher le dialogue d'appel actif avec options contrôle
+        JDialog callDialog = new JDialog(this, "Appel actif - " + callType, false);
+        callDialog.setSize(300, 150);
+        callDialog.setLocationRelativeTo(this);
+        callDialog.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+        
+        JPanel panel = new JPanel(new java.awt.FlowLayout());
+        panel.setBackground(com.securephone.client.ui.UIManager.getBackground());
+        
+        JLabel label = new JLabel("Appel en cours avec " + callerId + " (" + callType + ")");
+        label.setForeground(com.securephone.client.ui.UIManager.getOnBackground());
+        panel.add(label);
+        
+        JButton hangupBtn = new JButton("Raccrocher");
+        hangupBtn.addActionListener(e -> {
+            SecurePhoneApp.getConnectionManager().endCall();
+            callDialog.dispose();
+        });
+        panel.add(hangupBtn);
+        
+        callDialog.add(panel);
+        callDialog.setVisible(true);
+        
+        // Store reference for later access
+        this.activeCallDialog = callDialog;
+    }
+    
+    public void hideActiveCallUI() {
+        if (activeCallDialog != null) {
+            activeCallDialog.dispose();
+            activeCallDialog = null;
+        }
     }
     
     // ========== THÈME ==========

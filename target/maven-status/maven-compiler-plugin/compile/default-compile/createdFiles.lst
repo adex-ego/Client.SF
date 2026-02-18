@@ -29,6 +29,7 @@ com/securephone/client/utils/SoundPlayer$SoundType.class
 com/securephone/client/utils/SoundTestUI.class
 com/securephone/client/audio/AudioPlayer.class
 com/securephone/client/network/WebSocketClient.class
+com/securephone/client/ui/pages/AppPage$1.class
 com/securephone/client/network/AudioClient.class
 com/securephone/client/ui/pages/TwoFAPage.class
 com/securephone/client/MainUIDemo$1.class
@@ -46,6 +47,7 @@ com/securephone/client/network/ConnectionManager$StatusListener.class
 com/securephone/client/ui/components/Sidebar$1.class
 com/securephone/client/video/VideoClient.class
 com/securephone/client/utils/SoundTestUI$1.class
+com/securephone/client/SecurePhoneApp$2.class
 com/securephone/client/network/ConnectionManager$ChatListener.class
 com/securephone/client/MainUIDemo.class
 com/securephone/client/network/ApiClient.class

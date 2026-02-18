@@ -438,7 +438,11 @@ public class ConnectionManager {
 			ChatPacket packet = new ChatPacket(MessageType.CALL_INITIATE);
 			JSONObject data = new JSONObject();
 			data.put("call_id", currentCallId);
+<<<<<<< Updated upstream
 			data.put("call_type", callType); // "audio" ou "video"
+=======
+			data.put("call_type", callType);
+>>>>>>> Stashed changes
 			data.put("caller_id", session.getUserId());
 			data.put("caller_name", session.getUsername());
 			data.put("receiver_name", remoteName);
@@ -462,15 +466,24 @@ public class ConnectionManager {
 			return;
 		}
 		try {
+<<<<<<< Updated upstream
 			// Démarrer capture audio/vidéo
+=======
+>>>>>>> Stashed changes
 			if ("audio".equals(callType)) {
 				startAudio();
 			} else if ("video".equals(callType)) {
 				startVideo();
+<<<<<<< Updated upstream
 				startAudio(); // Audio aussi pour la vidéo
 			}
 
 			// Envoyer acceptation au serveur
+=======
+				startAudio();
+			}
+
+>>>>>>> Stashed changes
 			ChatPacket packet = new ChatPacket(MessageType.CALL_ACCEPT);
 			JSONObject data = new JSONObject();
 			data.put("call_id", currentCallId);
@@ -516,11 +529,17 @@ public class ConnectionManager {
 			return;
 		}
 		try {
+<<<<<<< Updated upstream
 			// Arrêter capture/réception
 			stopAudio();
 			stopVideo();
 
 			// Notifier le serveur
+=======
+			stopAudio();
+			stopVideo();
+
+>>>>>>> Stashed changes
 			ChatPacket packet = new ChatPacket(MessageType.CALL_END);
 			JSONObject data = new JSONObject();
 			data.put("call_id", currentCallId);

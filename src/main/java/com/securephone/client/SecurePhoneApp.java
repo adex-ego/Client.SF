@@ -129,6 +129,82 @@ public class SecurePhoneApp {
                 Logger.error("Network Error: " + message);
             });
         });
+        
+        // CALL listener - Gestion des appels
+        connectionManager.setCallListener(new ConnectionManager.CallListener() {
+            @Override
+            public void onCallIncoming(String callerId, String callerName, String callType) {
+                SwingUtilities.invokeLater(() -> {
+                    Logger.info("📞 Appel entrant de " + callerName + " (" + callType + ")");
+                    showIncomingCallDialog(callerName, callType);
+                });
+            }
+
+            @Override
+            public void onCallAccepted(String callerId, String callType) {
+                SwingUtilities.invokeLater(() -> {
+                    Logger.info("✅ Appel accepté: " + callType);
+                    mainFrame.showActiveCallUI(callerId, callType);
+                });
+            }
+
+            @Override
+            public void onCallRejected(String callerId, String reason) {
+                SwingUtilities.invokeLater(() -> {
+                    Logger.error("❌ Appel rejeté: " + reason);
+                    JOptionPane.showMessageDialog(
+                        mainFrame,
+                        "Appel rejeté: " + reason,
+                        "Appel terminé",
+                        JOptionPane.INFORMATION_MESSAGE
+                    );
+                });
+            }
+
+            @Override
+            public void onCallEnded(String callerId) {
+                SwingUtilities.invokeLater(() -> {
+                    Logger.info("🔚 Appel terminé");
+                    mainFrame.hideActiveCallUI();
+                });
+            }
+
+            @Override
+            public void onCallError(String message) {
+                SwingUtilities.invokeLater(() -> {
+                    Logger.error("❌ Erreur appel: " + message);
+                    JOptionPane.showMessageDialog(
+                        mainFrame,
+                        "Erreur appel: " + message,
+                        "Erreur",
+                        JOptionPane.ERROR_MESSAGE
+                    );
+                });
+            }
+        });
+    }
+    
+    private static void showIncomingCallDialog(String callerName, String callType) {
+        int option = JOptionPane.showOptionDialog(
+            mainFrame,
+            callerName + " vous appelle en " + callType,
+            "Appel entrant",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            new String[]{"Accepter", "Rejeter"},
+            "Accepter"
+        );
+        
+        if (option == JOptionPane.YES_OPTION) {
+            // Accepter l'appel
+            connectionManager.acceptCall(callType);
+            Logger.info("✅ Appel accepté: " + callType);
+        } else {
+            // Rejeter l'appel
+            connectionManager.rejectCall("Appel rejeté");
+            Logger.info("❌ Appel rejeté par utilisateur");
+        }
     }
     
     private static void setupPushListeners() {
