@@ -296,10 +296,19 @@ public class AppPage extends JPanel {
         }
         
         try {
+            com.securephone.client.utils.Logger.info("🎙️ Clic sur bouton appel audio vers " + selectedContactName);
             ConnectionManager cm = SecurePhoneApp.getConnectionManager();
+            if (cm == null) {
+                com.securephone.client.utils.Logger.error("❌ ConnectionManager est NULL!");
+                JOptionPane.showMessageDialog(this, "ConnectionManager indisponible", "Erreur", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            com.securephone.client.utils.Logger.info("   Appel à cm.initiateCall()");
             cm.initiateCall(selectedContactName, "audio");
             appendMessage("[SYSTEM]: Appel audio initialisé avec " + selectedContactName + "...");
         } catch (Exception ex) {
+            com.securephone.client.utils.Logger.error("❌ Exception appel audio: " + ex.getMessage());
+            ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Erreur appel audio: " + ex.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -311,10 +320,19 @@ public class AppPage extends JPanel {
         }
         
         try {
+            com.securephone.client.utils.Logger.info("📹 Clic sur bouton appel vidéo vers " + selectedContactName);
             ConnectionManager cm = SecurePhoneApp.getConnectionManager();
+            if (cm == null) {
+                com.securephone.client.utils.Logger.error("❌ ConnectionManager est NULL!");
+                JOptionPane.showMessageDialog(this, "ConnectionManager indisponible", "Erreur", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            com.securephone.client.utils.Logger.info("   Appel à cm.initiateCall()");
             cm.initiateCall(selectedContactName, "video");
             appendMessage("[SYSTEM]: Appel vidéo initialisé avec " + selectedContactName + "...");
         } catch (Exception ex) {
+            com.securephone.client.utils.Logger.error("❌ Exception appel vidéo: " + ex.getMessage());
+            ex.printStackTrace();
             JOptionPane.showMessageDialog(this, "Erreur appel vidéo: " + ex.getMessage(), "Erreur", JOptionPane.ERROR_MESSAGE);
         }
     }

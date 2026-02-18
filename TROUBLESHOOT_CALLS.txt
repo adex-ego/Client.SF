@@ -1,0 +1,219 @@
+🔧 GUIDE DE DÉPANNAGE - APPELS AUDIO/VIDÉO
+============================================
+
+PROBLÈME: Les appels audio et vidéo ne fonctionnent pas, la messagerie fonctionne
+
+DIAGNOSTICS À VÉRIFIER:
+========================
+
+1️⃣ VÉRIFICATION DES LOGS
+------------------------
+Lors du clic sur "Appel Audio" ou "Appel Vidéo", recherchez ces messages dans la console:
+
+✅ MESSAGES ATTENDUS (succès):
+   🎙️ Clic sur bouton appel audio vers [contact]
+   Tentative d'appel audio vers [contact]
+   WebSocket connecté: true
+   📤 Envoi message CALL_INITIATE: {...}
+   ✅ Message CALL_INITIATE envoyé avec succès
+
+❌ PROBLÈMES POSSIBLES:
+   - "WebSocket connecté: false" → Problème de connexion au serveur
+   - "Erreur envoi appel: ..." → Impossible d'envoyer le message
+   - Pas de réponse du serveur → Serveur ne traite pas le message
+
+
+2️⃣ DIAGNOSTICS POSSIBLES
+--------------------------
+
+A) PROBLÈME DE WEBSOCKET
+   Symptômes:
+   - Message "WebSocket connecté: false" lors d'un appel
+   - La messagerie marche mais pas les appels
+   
+   Solutions:
+   - Vérifier que le serveur reçoit bien le message LOGIN_RESPONSE avec succès
+   - Vérifier que la connexion au port 8081 reste active
+   - Essayer de envoyer un message texte après le login (messagerie)
+   
+   Code affecté:
+   - ConnectionManager.java:initiateCall() vérifie chatClient.isConnected()
+   - WebSocketClient.java:send() lance Exception si not connected
+
+
+B) PROBLÈME D'ENVOI DE MESSAGE
+   Symptômes:
+   - Erreur "Erreur envoi appel: ..." dans les logs
+   
+   Solutions:
+   - Vérifier l'exception complète (impression de stack trace)
+   - Vérifier que le message CALL_INITIATE est sérialisé correctement
+   
+   Code affecté:
+   - ConnectionManager.java:initiateCall() ligne ~150
+   - ConnectionManager.java:acceptCall() ligne ~170
+
+
+C) PROBLÈME DE DÉMARRAGE AUDIO/VIDÉO
+   Symptômes:
+   - Message d'appel envoyé, mais pas de flux audio/vidéo
+   - Erreurs "Erreur démarrage média: ..."
+   
+   Solutions:
+   - Vérifier que les clients audio/vidéo peuvent se connecter aux ports:
+     * Port 50000 (audio) - DatagramSocket/UDP
+     * Port 50020 (vidéo) - DatagramSocket/UDP
+   - Vérifier que le serveur a démarré les listeners sur ces ports
+   - Vérifier les logs détaillés du démarrage médias:
+     "Configuring audio client..."
+     "Starting audio receive..."
+     "Starting audio capture..."
+   
+   Code affecté:
+   - ConnectionManager.java:acceptCall() lignes ~175-190
+   - AudioClient.java:configure(), startReceiving(), startCapture()
+   - VideoClient.java:configure(), start()
+
+
+D) PROBLÈME CÔTÉ SERVEUR
+   Symptômes:
+   - Message d'appel envoyé, mais l'autre client ne reçoit pas CALL_INITIATE
+   
+   Solutions:
+   - Vérifier que le serveur:
+     1. Reçoit bien le message CALL_INITIATE du client A
+     2. Trouve bien le contact B dans sa liste
+     3. Envoie CALL_INITIATE au client B
+   - Vérifier les logs du serveur pour voir les erreurs
+
+
+3️⃣ FLUX D'APPEL ATTENDU
+--------------------------
+
+Client A (qui appelle):
+  1. Clic "Appel Audio"
+  2. initiateCall() → Envoie CALL_INITIATE au serveur
+  3. Attend CALL_ACCEPT du serveur (envoyé par Client B)
+
+Client B (qui reçoit):
+  1. Reçoit CALL_INITIATE du serveur
+  2. handler CALL_INITIATE → Appelle listener.onCallIncoming()
+  3. Interface affiche dialog "Appel entrant de A"
+  4. Clic "Accepter" → Envoie CALL_ACCEPT au serveur
+  5. De son côté, démarre audioClient/videoClient
+
+Serveur:
+  1. Reçoit CALL_INITIATE de A → Notifie B
+  2. Reçoit CALL_ACCEPT de B → Notifie A et active flux RTC
+  3. Les deux clients reçoivent CALL_ACCEPT et démarrent leurs flux
+
+
+4️⃣ POINTS DE VÉRIFICATION DE CODE
+----------------------------------
+
+Pour vérifier manuellement:
+
+✓ Les messages types existent:
+  MessageType.CALL_INITIATE
+  MessageType.CALL_ACCEPT
+  MessageType.CALL_REJECT
+  MessageType.CALL_END
+
+✓ Le listener est bien enregistré:
+  SecurePhoneApp.java → setupConnectionListeners()
+  Doit appeler: connectionManager.setCallListener(new ConnectionManager.CallListener() {...})
+
+✓ Les clients audio/vidéo sont créés:
+  ConnectionManager.java ligne ~58:
+  - private final AudioClient audioClient = new AudioClient();
+  - private final com.securephone.client.video.VideoClient videoClient = new com.securephone.client.video.VideoClient();
+
+✓ Les callbacks UI sont appelés:
+  Rechercher "onCallIncoming", "onCallAccepted", "onCallEnded" dans SecurePhoneApp.java
+  Doit afficher un dialog ou changer l'interface
+
+
+5️⃣ COMMANDES DE TEST
+---------------------
+
+Test 1: Vérifier la connexion WebSocket
+$ nc -zv 10.19.174.48 8081
+(devrait afficher: "Connection successful" ou "open")
+
+Test 2: Vérifier les ports UDP (serveur doit les avoir ouvert)
+$ nc -zu 10.19.174.48 50000   # Audio
+$ nc -zu 10.19.174.48 50020   # Vidéo
+(devrait montrer une réaction quelconque ou timeout)
+
+Test 3: Vérifier les logs complètement
+$ mvn exec:java -Dexec.mainClass="com.securephone.client.SecurePhoneApp" 2>&1 | tee app.log
+Puis faire un appel et sauvegarder app.log pour analyse
+
+
+6️⃣ CHECKLIST POUR DÉBOGAGER
+-----------------------------
+
+Avant d'appeler:
+  □ Deux clients authentifiés avec des usernames différents
+  □ Les deux clients voient les contacts dans la liste
+  □ Les boutons d'appel sont activés (pas grisés)
+  □ Pas d'erreurs de connexion dans les logs
+
+Lors du clic sur "Appel Audio":
+  □ Message "🎙️ Clic sur bouton appel audio vers [contact]" dans logs
+  □ Message "Tentative d'appel audio vers [contact]" dans logs
+  □ Message "WebSocket connecté: true" dans logs
+  □ Message "✅ Message CALL_INITIATE envoyé avec succès" dans logs
+  □ Message "[SYSTEM]: Appel audio initialisé avec [contact]..." dans la zone chat
+
+Côté autre client:
+  □ Aucun message d'erreur reçu
+  □ Si tout va bien: dialog "Appel entrant" devrait afficher
+  □ Si dialog affiche, client peut "Accepter" ou "Rejeter"
+
+Si "Accepter" cliqué:
+  □ Message "✅ Message CALL_ACCEPT envoyé" dans logs du Client B
+  □ Client A reçoit CALL_ACCEPT et affiche "✅ Appel accepté par..."
+  □ Démarrage des flux: "Configuring audio client...", etc.
+  □ Après ~2-3 secondes: "✅ Flux audio démarré"
+
+
+7️⃣ FICHIERS À EXAMINER
+-----------------------
+
+Si vous devez étudier le code:
+
+1. SecurePhoneApp.java:
+   - setupConnectionListeners() - Enregistrer CallListener
+   - Listener implémente: onCallIncoming, onCallAccepted, etc.
+
+2. ConnectionManager.java:
+   - initiateCall() - Envoyer CALL_INITIATE
+   - acceptCall() - Envoyer CALL_ACCEPT et démarrer médias
+   - rejectCall() - Envoyer CALL_REJECT
+   - endCall() - Envoyer CALL_END et arrêter médias
+   - handleMessage() - Traiter CALL_INITIATE/ACCEPT/REJECT/END
+
+3. AppPage.java:
+   - initiateAudioCall() / initiateVideoCall() - Appels UI
+   - Boutons sont attachés à ces méthodes
+
+4. AudioClient.java & VideoClient.java:
+   - configure(host, port, userId) - Initialiser
+   - Attention: Utilisent DatagramSocket (UDP), pas TCP!
+
+
+RÉSUMÉ:
+========
+
+Les appels audio/vidéo dépendent d'une chaîne:
+1. Message CALL_INITIATE envoyé via WebSocket (TCP port 8081) ✅ Codé
+2. Serveur route le message au destinataire
+3. Destinataire reçoit et affiche dialog
+4. Destinataire envoie CALL_ACCEPT via WebSocket
+5. Appelant reçoit CALL_ACCEPT
+6. Les deux démarrent AudioClient/VideoClient (UDP ports 50000/50020)
+
+Si l'étape 1 échoue → Le problème est dans ConnectionManager ou WebSocket
+Si l'étape 2-4 échouent → Le problème est serveur/réseau
+Si l'étape 6 échoue → Le problème est AudioClient/VideoClient ou ports fermés

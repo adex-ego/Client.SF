@@ -130,6 +130,15 @@ public class ConnectionManager {
 	// ========== CALL MANAGEMENT ==========
 
 	public void initiateCall(String remoteName, String callType) {
+		Logger.info("📞 Tentative d'appel " + callType + " vers " + remoteName);
+		Logger.info("   Session utilisateur: " + session.getUsername());
+		Logger.info("   WebSocket connecté: " + chatClient.isConnected());
+		
+		if (!chatClient.isConnected()) {
+			Logger.error("❌ WebSocket non connecté! Impossible d'initier l'appel");
+			return;
+		}
+		
 		this.currentCallRemoteUser = remoteName;
 		this.currentCallType = callType;
 		this.currentCallId = java.util.UUID.randomUUID().toString();
@@ -144,15 +153,24 @@ public class ConnectionManager {
 		packet.setData(data);
 		
 		try {
-			chatClient.send(packet.toJson());
+			String jsonMsg = packet.toJson();
+			Logger.info("📤 Envoi message CALL_INITIATE: " + jsonMsg);
+			chatClient.send(jsonMsg);
+			Logger.info("✅ Message CALL_INITIATE envoyé avec succès");
 		} catch (Exception e) {
 			Logger.error("❌ Erreur envoi appel: " + e.getMessage());
+			e.printStackTrace();
 		}
 		Logger.info("📞 Appel " + callType + " initialisé avec " + remoteName);
 	}
 
 	public void acceptCall(String callType) {
-		if (currentCallId == null) return;
+		if (currentCallId == null) {
+			Logger.error("❌ Pas d'appel actif à accepter");
+			return;
+		}
+		
+		Logger.info("✅ Acceptation appel " + callType + " (ID: " + currentCallId + ")");
 		
 		this.currentCallType = callType;
 		ChatPacket packet = new ChatPacket();
@@ -164,23 +182,35 @@ public class ConnectionManager {
 		packet.setData(data);
 		
 		try {
-			chatClient.send(packet.toJson());
+			String jsonMsg = packet.toJson();
+			Logger.info("📤 Envoi message CALL_ACCEPT: " + jsonMsg);
+			chatClient.send(jsonMsg);
+			Logger.info("✅ Message CALL_ACCEPT envoyé");
 		} catch (Exception e) {
 			Logger.error("❌ Erreur envoi acceptation appel: " + e.getMessage());
 		}
 		
 		// Start audio/video streams
 		try {
+			Logger.info("🎯 Démarrage flux " + callType + " vers " + host + ":" + ("audio".equals(callType) ? audioPort : videoPort));
 			if ("audio".equals(callType)) {
+				Logger.info("   Configuring audio client...");
 				audioClient.configure(host, audioPort, session.getUserId());
+				Logger.info("   Starting audio receive...");
 				audioClient.startReceiving();
+				Logger.info("   Starting audio capture...");
 				audioClient.startCapture();
+				Logger.info("✅ Flux audio démarré");
 			} else if ("video".equals(callType)) {
+				Logger.info("   Configuring video client...");
 				videoClient.configure(host, videoPort, session.getUserId());
+				Logger.info("   Starting video...");
 				videoClient.start();
+				Logger.info("✅ Flux vidéo démarré");
 			}
 		} catch (Exception e) {
 			Logger.error("❌ Erreur démarrage média: " + e.getMessage());
+			e.printStackTrace();
 		}
 		
 		Logger.info("✅ Appel accepté");
@@ -668,31 +698,48 @@ public class ConnectionManager {
 			currentCallId = data.optString("callId");
 			currentCallRemoteUser = data.optString("callerName");
 			currentCallType = data.optString("callType");
-			Logger.info("📞 Appel entrant de " + currentCallRemoteUser);
+			Logger.info("📞 Appel entrant de " + currentCallRemoteUser + " (" + currentCallType + ")");
+			Logger.info("   Call ID: " + currentCallId);
 			if (callListener != null) {
+				Logger.info("   Callback d'appel entrant en cours...");
 				callListener.onCallIncoming(currentCallRemoteUser);
+			} else {
+				Logger.error("   ❌ callListener est NULL!");
 			}
 			return;
 		}
 
 		if (type == MessageType.CALL_ACCEPT) {
-			Logger.info("✅ Appel accepté par " + data.optString("accepterName"));
+			String accepterName = data.optString("accepterName");
+			String acceptedType = data.optString("acceptedType");
+			Logger.info("✅ Appel accepté par " + accepterName + " (" + acceptedType + ")");
 			if (callListener != null) {
+				Logger.info("   Callback d'appel accepté en cours...");
 				callListener.onCallAccepted();
+			} else {
+				Logger.error("   ❌ callListener est NULL!");
 			}
 			// Start audio/video based on accepted type
-			String acceptedType = data.optString("acceptedType");
 			try {
+				Logger.info("🎵 Démarrage flux " + acceptedType + " vers " + host + ":" + ("audio".equals(acceptedType) ? audioPort : videoPort));
 				if ("audio".equals(acceptedType)) {
+					Logger.info("   Configuring audio client...");
 					audioClient.configure(host, audioPort, session.getUserId());
+					Logger.info("   Starting audio receive...");
 					audioClient.startReceiving();
+					Logger.info("   Starting audio capture...");
 					audioClient.startCapture();
+					Logger.info("✅ Flux audio démarré");
 				} else if ("video".equals(acceptedType)) {
+					Logger.info("   Configuring video client...");
 					videoClient.configure(host, videoPort, session.getUserId());
+					Logger.info("   Starting video...");
 					videoClient.start();
+					Logger.info("✅ Flux vidéo démarré");
 				}
 			} catch (Exception e) {
 				Logger.error("❌ Erreur démarrage média: " + e.getMessage());
+				e.printStackTrace();
 			}
 			return;
 		}
@@ -710,11 +757,15 @@ public class ConnectionManager {
 		}
 
 		if (type == MessageType.CALL_END) {
-			Logger.info("🔴 Appel terminé par " + data.optString("endedBy"));
+			String endedBy = data.optString("endedBy");
+			Logger.info("🔴 Appel terminé par " + endedBy);
 			try {
+				Logger.info("   Arrêt flux audio...");
 				audioClient.stopReceiving();
 				audioClient.stopCapture();
+				Logger.info("   Arrêt flux vidéo...");
 				videoClient.stop();
+				Logger.info("✅ Arrêt flux complet");
 			} catch (Exception e) {
 				Logger.error("❌ Erreur arrêt média: " + e.getMessage());
 			}
