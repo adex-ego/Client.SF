@@ -112,13 +112,15 @@ public class MainFrame extends JFrame {
         mainPanel = new JPanel(cardLayout);
         mainPanel.setBackground(UIManager.getBackground());
         
+        // Ajouter la sidebar à droite (cachée par défaut)
+        sidebar = new Sidebar();
+        sidebar.setVisible(false);
+        
         // Ajouter le content pane
         JPanel contentPane = new JPanel(new BorderLayout());
         contentPane.add(mainPanel, BorderLayout.CENTER);
-        
-        // Ajouter la sidebar sur la gauche
-        sidebar = new Sidebar();
-        contentPane.add(sidebar, BorderLayout.WEST);
+        contentPane.add(sidebar, BorderLayout.EAST);
+        contentPane.setBackground(UIManager.getBackground());
         
         setContentPane(contentPane);
     }
@@ -262,21 +264,29 @@ public class MainFrame extends JFrame {
     
     // ========== NAVIGATION ==========
     public void showLoginPage() {
+        sidebar.setVisible(false);
         cardLayout.show(mainPanel, LOGIN_PAGE);
     }
     
     public void showRegisterPage() {
+        sidebar.setVisible(false);
         cardLayout.show(mainPanel, REGISTER_PAGE);
     }
     
     public void showTwoFAPage(String email) {
+        sidebar.setVisible(false);
         twoFAPage.setEmail(email);
         cardLayout.show(mainPanel, TWOFА_PAGE);
     }
     
     public void showAppPage(String username) {
+        sidebar.setVisible(true);
         appPage.setUsername(username);
         cardLayout.show(mainPanel, APP_PAGE);
+        // Fermer les popups si ouvertes
+        if (notificationsPopup != null) notificationsPopup.setVisible(false);
+        if (searchContactsPopup != null) searchContactsPopup.setVisible(false);
+        if (settingsPopup != null) settingsPopup.setVisible(false);
     }
     
     // ========== THÈME ==========
@@ -288,8 +298,12 @@ public class MainFrame extends JFrame {
     private void updateTheme() {
         // Mettre à jour les couleurs de tous les composants
         mainPanel.setBackground(UIManager.getBackground());
-        sidebar.setBackground(UIManager.getPrimary());
         getContentPane().setBackground(UIManager.getBackground());
+        
+        // Mettre à jour la sidebar
+        if (sidebar != null) {
+            sidebar.updateTheme();
+        }
         
         // Mettre à jour récursivement
         UIManager.applyThemeRecursively(this);

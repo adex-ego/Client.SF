@@ -52,18 +52,18 @@ public class UIManager {
     // ========== COULEURS THÈME SOMBRE ==========
     public static class DarkTheme {
         // Couleurs principales
-        public static final Color BACKGROUND = new Color(30, 30, 30);          // Fond principal
-        public static final Color SURFACE = new Color(45, 45, 45);              // Surfaces (cartes, panels)
-        public static final Color SURFACE_VARIANT = new Color(55, 55, 55);      // Surface alternative
+        public static final Color BACKGROUND = new Color(18, 18, 18);           // Fond principal noir
+        public static final Color SURFACE = new Color(25, 25, 25);              // Surfaces (cartes, panels)
+        public static final Color SURFACE_VARIANT = new Color(35, 35, 35);      // Surface alternative
         
         // Couleurs de texte
-        public static final Color TEXT_PRIMARY = new Color(240, 240, 240);      // Texte principal
-        public static final Color TEXT_SECONDARY = new Color(180, 180, 180);    // Texte secondaire
+        public static final Color TEXT_PRIMARY = new Color(255, 255, 255);      // Texte principal blanc
+        public static final Color TEXT_SECONDARY = new Color(200, 200, 200);    // Texte secondaire
         public static final Color TEXT_DISABLED = new Color(120, 120, 120);     // Texte désactivé
         
         // Couleurs d'accent
         public static final Color PRIMARY = new Color(100, 200, 255);           // Bleu principal
-        public static final Color PRIMARY_VARIANT = new Color(80, 180, 235);    // Bleu variant
+        public static final Color PRIMARY_VARIANT = new Color(80, 160, 215);    // Bleu variant
         public static final Color SECONDARY = new Color(150, 100, 255);         // Violet secondaire
         
         // Couleurs de statut
@@ -73,26 +73,26 @@ public class UIManager {
         public static final Color INFO = new Color(33, 150, 243);               // Bleu info
         
         // Bordures et séparateurs
-        public static final Color BORDER = new Color(80, 80, 80);
-        public static final Color DIVIDER = new Color(60, 60, 60);
+        public static final Color BORDER = new Color(50, 50, 50);
+        public static final Color DIVIDER = new Color(40, 40, 40);
         
         // États interactifs
-        public static final Color HOVER = new Color(60, 60, 60);
-        public static final Color PRESSED = new Color(70, 70, 70);
+        public static final Color HOVER = new Color(45, 45, 45);
+        public static final Color PRESSED = new Color(55, 55, 55);
         public static final Color SELECTED = new Color(100, 200, 255, 30);
     }
     
     // ========== COULEURS THÈME CLAIR ==========
     public static class LightTheme {
         // Couleurs principales
-        public static final Color BACKGROUND = new Color(250, 250, 250);
-        public static final Color SURFACE = new Color(255, 255, 255);
-        public static final Color SURFACE_VARIANT = new Color(245, 245, 245);
+        public static final Color BACKGROUND = new Color(255, 255, 255);        // Fond blanc
+        public static final Color SURFACE = new Color(250, 250, 250);           // Surfaces
+        public static final Color SURFACE_VARIANT = new Color(245, 245, 245);   // Surface alternative
         
         // Couleurs de texte
-        public static final Color TEXT_PRIMARY = new Color(33, 33, 33);
-        public static final Color TEXT_SECONDARY = new Color(97, 97, 97);
-        public static final Color TEXT_DISABLED = new Color(158, 158, 158);
+        public static final Color TEXT_PRIMARY = new Color(20, 20, 20);         // Texte principal noir
+        public static final Color TEXT_SECONDARY = new Color(80, 80, 80);       // Texte secondaire
+        public static final Color TEXT_DISABLED = new Color(158, 158, 158);     // Texte désactivé
         
         // Couleurs d'accent
         public static final Color PRIMARY = new Color(33, 150, 243);
@@ -106,12 +106,12 @@ public class UIManager {
         public static final Color INFO = new Color(33, 150, 243);
         
         // Bordures et séparateurs
-        public static final Color BORDER = new Color(224, 224, 224);
-        public static final Color DIVIDER = new Color(238, 238, 238);
+        public static final Color BORDER = new Color(230, 230, 230);
+        public static final Color DIVIDER = new Color(240, 240, 240);
         
         // États interactifs
-        public static final Color HOVER = new Color(245, 245, 245);
-        public static final Color PRESSED = new Color(238, 238, 238);
+        public static final Color HOVER = new Color(240, 240, 240);
+        public static final Color PRESSED = new Color(230, 230, 230);
         public static final Color SELECTED = new Color(33, 150, 243, 20);
     }
     
