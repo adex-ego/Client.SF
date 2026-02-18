@@ -45,6 +45,14 @@ public class ConnectionManager {
 		void onNotification(String type, String title, String message, JSONObject data);
 	}
 
+	public interface CallListener {
+		void onCallIncoming(String callerId, String callerName, String callType);
+		void onCallAccepted(String callerId, String callType);
+		void onCallRejected(String callerId, String reason);
+		void onCallEnded(String callerId);
+		void onCallError(String message);
+	}
+
 	private final WebSocketClient chatClient = new WebSocketClient();
 	private final AudioClient audioClient = new AudioClient();
 	private final com.securephone.client.video.VideoClient videoClient = new com.securephone.client.video.VideoClient();
@@ -55,6 +63,11 @@ public class ConnectionManager {
 	private StatusListener statusListener;
 	private ErrorListener errorListener;
 	private NotificationListener notificationListener;
+	private CallListener callListener;
+	
+	private String currentCallId = null;
+	private String currentCallType = null;
+	private String currentCallRemoteUser = null;
 
 	private UserSession session = new UserSession();
 
@@ -107,6 +120,10 @@ public class ConnectionManager {
 
 	public void setNotificationListener(NotificationListener listener) {
 		this.notificationListener = listener;
+	}
+
+	public void setCallListener(CallListener listener) {
+		this.callListener = listener;
 	}
 
 	public boolean connect() {
@@ -406,6 +423,133 @@ public class ConnectionManager {
 		videoClient.stop();
 	}
 
+	public void initiateCall(String remoteName, String callType) {
+		if (!session.isLoggedIn()) {
+			if (callListener != null) {
+				callListener.onCallError("Non connecté");
+			}
+			return;
+		}
+		try {
+			this.currentCallId = java.util.UUID.randomUUID().toString();
+			this.currentCallType = callType;
+			this.currentCallRemoteUser = remoteName;
+
+			ChatPacket packet = new ChatPacket(MessageType.CALL_INITIATE);
+			JSONObject data = new JSONObject();
+			data.put("call_id", currentCallId);
+			data.put("call_type", callType); // "audio" ou "video"
+			data.put("caller_id", session.getUserId());
+			data.put("caller_name", session.getUsername());
+			data.put("receiver_name", remoteName);
+			data.put("timestamp", System.currentTimeMillis());
+			packet.setData(data);
+			chatClient.send(packet.toJson());
+			Logger.info("📞 Appel initialisé: " + callType + " avec " + remoteName);
+		} catch (Exception e) {
+			Logger.error("Erreur initialisation appel: " + e.getMessage());
+			if (callListener != null) {
+				callListener.onCallError(e.getMessage());
+			}
+		}
+	}
+
+	public void acceptCall(String callType) {
+		if (!session.isLoggedIn() || currentCallId == null) {
+			if (callListener != null) {
+				callListener.onCallError("Appel non disponible");
+			}
+			return;
+		}
+		try {
+			// Démarrer capture audio/vidéo
+			if ("audio".equals(callType)) {
+				startAudio();
+			} else if ("video".equals(callType)) {
+				startVideo();
+				startAudio(); // Audio aussi pour la vidéo
+			}
+
+			// Envoyer acceptation au serveur
+			ChatPacket packet = new ChatPacket(MessageType.CALL_ACCEPT);
+			JSONObject data = new JSONObject();
+			data.put("call_id", currentCallId);
+			data.put("call_type", callType);
+			data.put("accepter_id", session.getUserId());
+			data.put("accepter_name", session.getUsername());
+			data.put("timestamp", System.currentTimeMillis());
+			packet.setData(data);
+			chatClient.send(packet.toJson());
+			Logger.info("✅ Appel accepté: " + callType);
+		} catch (Exception e) {
+			Logger.error("Erreur acceptation appel: " + e.getMessage());
+			if (callListener != null) {
+				callListener.onCallError(e.getMessage());
+			}
+		}
+	}
+
+	public void rejectCall(String reason) {
+		if (!session.isLoggedIn() || currentCallId == null) {
+			return;
+		}
+		try {
+			ChatPacket packet = new ChatPacket(MessageType.CALL_REJECT);
+			JSONObject data = new JSONObject();
+			data.put("call_id", currentCallId);
+			data.put("rejection_reason", reason != null ? reason : "Rejet");
+			data.put("rejecter_id", session.getUserId());
+			data.put("timestamp", System.currentTimeMillis());
+			packet.setData(data);
+			chatClient.send(packet.toJson());
+			currentCallId = null;
+			currentCallType = null;
+			currentCallRemoteUser = null;
+			Logger.info("❌ Appel rejeté");
+		} catch (Exception e) {
+			Logger.error("Erreur rejet appel: " + e.getMessage());
+		}
+	}
+
+	public void endCall() {
+		if (!session.isLoggedIn() || currentCallId == null) {
+			return;
+		}
+		try {
+			// Arrêter capture/réception
+			stopAudio();
+			stopVideo();
+
+			// Notifier le serveur
+			ChatPacket packet = new ChatPacket(MessageType.CALL_END);
+			JSONObject data = new JSONObject();
+			data.put("call_id", currentCallId);
+			data.put("ender_id", session.getUserId());
+			data.put("timestamp", System.currentTimeMillis());
+			packet.setData(data);
+			chatClient.send(packet.toJson());
+
+			currentCallId = null;
+			currentCallType = null;
+			currentCallRemoteUser = null;
+			Logger.info("🔚 Appel terminé");
+		} catch (Exception e) {
+			Logger.error("Erreur fin appel: " + e.getMessage());
+		}
+	}
+
+	public String getCurrentCallType() {
+		return currentCallType;
+	}
+
+	public String getCurrentCallRemoteUser() {
+		return currentCallRemoteUser;
+	}
+
+	public boolean hasActiveCall() {
+		return currentCallId != null;
+	}
+
 	public com.securephone.client.video.VideoClient getVideoClient() {
 		return videoClient;
 	}
@@ -508,6 +652,57 @@ public class ConnectionManager {
 				if (contactListener != null) {
 					contactListener.onContactList(contacts);
 				}
+				return;
+			}
+
+			if (type == MessageType.CALL_INITIATE) {
+				String callId = data.optString("call_id");
+				String callType = data.optString("call_type");
+				int callerId = data.optInt("caller_id");
+				String callerName = data.optString("caller_name");
+				
+				currentCallId = callId;
+				currentCallType = callType;
+				currentCallRemoteUser = callerName;
+				
+				if (callListener != null) {
+					callListener.onCallIncoming(String.valueOf(callerId), callerName, callType);
+				}
+				Logger.info("📞 Appel entrant: " + callType + " de " + callerName);
+				return;
+			}
+
+			if (type == MessageType.CALL_ACCEPT) {
+				String callType = data.optString("call_type");
+				if (callListener != null) {
+					callListener.onCallAccepted(currentCallRemoteUser, callType);
+				}
+				Logger.info("✅ Appel accepté par " + currentCallRemoteUser);
+				return;
+			}
+
+			if (type == MessageType.CALL_REJECT) {
+				String reason = data.optString("rejection_reason", "Rejeté");
+				if (callListener != null) {
+					callListener.onCallRejected(currentCallRemoteUser, reason);
+				}
+				currentCallId = null;
+				currentCallType = null;
+				currentCallRemoteUser = null;
+				Logger.info("❌ Appel rejeté: " + reason);
+				return;
+			}
+
+			if (type == MessageType.CALL_END) {
+				stopAudio();
+				stopVideo();
+				if (callListener != null) {
+					callListener.onCallEnded(currentCallRemoteUser);
+				}
+				currentCallId = null;
+				currentCallType = null;
+				currentCallRemoteUser = null;
+				Logger.info("🔚 Appel terminé par l'autre côté");
 				return;
 			}
 

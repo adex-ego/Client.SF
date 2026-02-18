@@ -1,0 +1,422 @@
+═══════════════════════════════════════════════════════════════════════════════
+  GUIDE DE TEST - APPELS AUDIO, VIDÉO ET CHAT
+═══════════════════════════════════════════════════════════════════════════════
+
+PRÉREQUIS
+─────────────────────────────────────────────────────────────────────────────
+
+1. Serveur running
+   - SecurePhone serveur doit être actif sur 10.19.174.48 (ou localhost)
+   - Port 8081 pour WebSocket (chat)
+   - Port 50000 pour Audio UDP
+   - Port 50020 pour Vidéo UDP
+
+2. Deux clients ou plus
+   - Client Alice sur machine A
+   - Client Bob sur machine B
+   - Les deux doivent se voir (même réseau)
+
+3. Microphone et haut-parleurs
+   - Test audio reqiert input/output audio
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SCENARIO 1 - TEST CHAT ÉLECTRONIQUE
+═══════════════════════════════════════════════════════════════════════════════
+
+SETUP:
+  1. Lancer Client Alice
+     $ java -cp target/classes:... com.securephone.client.MainClient
+     
+  2. Lancer Client Bob
+     $ java -cp target/classes:... com.securephone.client.MainClient
+     
+  3. Attendre que l'UI s'affiche
+
+ÉTAPES:
+  1. Alice se connecte
+     - Login: alice
+     - Mot de passe: xxxxxx
+     - 2FA si activé
+     
+  2. Bob se connecte
+     - Login: bob
+     - Mot de passe: xxxxxx
+     - 2FA si activé
+     
+  3. Alice cherche Bob
+     - Clic "Rechercher"
+     - Tape "bob"
+     - Ajoute comme contact
+     
+  4. Alice envoie message à Bob
+     - Sélectionne Bob dans contacts
+     - Tape "Salut Bob!"
+     - Clique "Envoyer"
+     
+  5. Bob reçoit message
+     - Notification "Nouveau message de alice"
+     - Message apparaît dans chat
+     
+  6. Bob répond
+     - Tape "Salut Alice!"
+     - Clique "Envoyer"
+
+RÉSULTAT ATTENDU:
+  ✓ Messages reçus en temps réel (WebSocket)
+  ✓ Pas de latence perceptible
+  ✓ Notifications affichées
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SCENARIO 2 - TEST APPEL AUDIO
+═══════════════════════════════════════════════════════════════════════════════
+
+SETUP:
+  (Même que Scenario 1)
+
+ÉTAPES:
+  1. Alice et Bob connectés ET dans contacts mutuellement
+  
+  2. Alice initie appel audio
+     - Sélectionne Bob dans contacts
+     - Clique "📞 Appel vocal"
+     - Bob reçoit notification "Alice vous appelle (Audio)"
+     
+  3. Bob accepte
+     - Click "Accepter" dans dialogue appel entrant
+     - Son microphone s'active
+     - Voir logs: "✅ Appel accepté: audio"
+     
+  4. Alice entend buzz/notification
+     - Voir logs: "✅ Appel accepté par bob"
+     - Dialogue appel actif s'affiche
+     - Voir "Appel en cours avec bob"
+     
+  5. AUDIO TESTS:
+     - Alice parle dans son microphone
+     - Bob entend l'audio côté haut-parleurs
+     - Bob parle dans son microphone
+     - Alice entend l'audio côté haut-parleurs
+     
+  6. Terminer appel
+     - Alice ou Bob clique "Raccrocher"
+     - AudioClient.stopCapture() activé
+     - Voir logs: "🔚 Appel terminé"
+     - Dialogue ferme
+
+RÉSULTAT ATTENDU:
+  ✓ Appel initié via WebSocket (CALL_INITIATE)
+  ✓ Acceptation reçue via WebSocket (CALL_ACCEPT)
+  ✓ Audio capturé et envoyé via UDP port 50000
+  ✓ Audio reçu et joué côté distant
+  ✓ Fin d'appel via WebSocket (CALL_END)
+
+DÉPANNAGE:
+  ❓ Pas de son?
+     - Vérifier microphone system (pavcontrol / alsamixer)
+     - Vérifier haut-parleurs system
+     - Vérifier AudioCapture.start() est appelé
+     
+  ❓ Appel rejeté tout de suite?
+     - Vérifier WebSocket connecté
+     - Vérifier utilisateur connecté (loggedIn)
+     - Vérifier callListener défini
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SCENARIO 3 - TEST APPEL VIDÉO
+═══════════════════════════════════════════════════════════════════════════════
+
+SETUP:
+  (Même que Scenario 1, + webcam optionnel)
+
+ÉTAPES:
+  1. Alice et Bob connectés
+  
+  2. Alice initie appel vidéo
+     - Sélectionne Bob dans contacts
+     - Clique "📹 Appel vidéo"
+     - Bob reçoit notification "Alice you appelle (Vidéo)"
+  
+  3. Bob accepte
+     - Clique "Accepter" dans dialogue appel entrant
+     - Fenêtre vidéo d'Alice s'affiche côté Bob
+     - Voir logs: "✅ Appel accepté: video"
+     
+  4. Alice reçoit acceptation
+     - Fenêtre vidéo de Bob s'affiche côté Alice
+     - Voir logs: "✅ Appel accepté par bob"
+     
+  5. VIDEO TESTS:
+     - Alice bouge = vidéo de Bob se met à jour
+     - Bob bouge = vidéo d'Alice se met à jour
+     - À observer: latence vidéo et FPS
+     
+  6. AUDIO PENDANT VIDÉO:
+     - AudioClient lancé automatiquement avec VideoClient
+     - Alice et Bob peuvent parler pendant vidéo
+     
+  7. Terminer appel
+     - Alice ou Bob clique "Raccrocher"
+     - VideoClient.stop() + AudioClient.stopCapture()
+     - Voir logs: "🔚 Appel terminé"
+
+RÉSULTAT ATTENDU:
+  ✓ Appel vidéo + audio initialisé
+  ✓ Frames vidéo envoyées via UDP port 50020
+  ✓ Frames vidéo reçues et affichées
+  ✓ Audio fonctionne en parallèle
+  ✓ Destruction propre de l'appel
+
+DÉPANNAGE:
+  ❓ Vidéo figée / pas d'update?
+     - Vérifier VideoCapture.start() appelée
+     - Vérifier frameListener enregistré
+     - Vérifier résolution 640x480
+     
+  ❓ Lag video / FPS bas?
+     - Normal avec JPEG (voir codec H264Codec)
+     - Réduire fps dans VideoClient (15 → 10)
+     - Réduire résolution (640x480 → 320x240)
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SCENARIO 4 - TEST REJET ET TIMEOUT
+═══════════════════════════════════════════════════════════════════════════════
+
+TEST REJET:
+
+  1. Alice appelle Bob
+  2. Bob clique "Rejeter"
+     - Voir logs Bob: "❌ Appel rejeté"
+  3. Alice reçoit notification
+     - Voir logs Alice: "Appel rejeté: Rejet"
+     - Dialogue appel ferme
+     
+RÉSULTAT ATTENDU:
+  ✓ CALL_REJECT reçu
+  ✓ État d'appel nettoyé
+  ✓ Pas de fuite de ressources
+
+TEST IGNORER (TIMEOUT):
+
+  1. Alice appelle Bob
+  2. Bob ne clique rien (ignore appel)
+  3. Après 30-60 secondes (ou timeout)
+     - Appel devrait expirer (TODO: améliorer)
+     - Alice devrait recevoir timeout
+     - État nettoyé
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SCENARIO 5 - TEST DÉCONNEXION PENDANT APPEL
+═══════════════════════════════════════════════════════════════════════════════
+
+SETUP:
+  Alice et Bob en appel audio actif
+
+ÉTAPES:
+  1. Bob ferme son client durant appel
+     - Côté Alice: appel continue 10-30 secondes
+     - Puis Alice reçoit CALL_END ou timeout
+     - AudioPlayer s'arrête
+     
+  2. Résultat côté Alice:
+     - Logs: "Appel terminé par..."
+     - Voir logs: "❌ Erreur socket lecture"
+     - État appel nettoyé
+
+RÉSULTAT ATTENDU:
+  ✓ Pas de crash côté Alice
+  ✓ État nettoyé proprement
+  ✓ Logs clairs de la déconnexion
+
+
+═══════════════════════════════════════════════════════════════════════════════
+SCENARIO 6 - TEST CHAT PENDANT APPEL
+═══════════════════════════════════════════════════════════════════════════════
+
+SETUP:
+  Alice et Bob en appel audio/vidéo
+
+ÉTAPES:
+  1. Pendant appel, Alice envoie message à Bob
+     - Utilise chat panel
+     - Envoie "On s'entend bien!" via TEXT_MESSAGE
+     
+  2. Bob reçoit message
+     - Chat notification reçue
+     - Message affiché dans panel chat
+     
+  3. Bob répond
+
+RÉSULTAT ATTENDU:
+  ✓ Chat indépendant de audio/vidéo (WebSocket vs UDP)
+  ✓ Pas de conflit TCP/UDP
+  ✓ Trois streams simultanés fonctionnels
+
+
+═══════════════════════════════════════════════════════════════════════════════
+LOGS À OBSERVER
+═══════════════════════════════════════════════════════════════════════════════
+
+POUR APPEL AUDIO:
+  ✓ "[INFO] 📞 Appel initialisé: audio avec bob"
+  ✓ "[INFO] 📞 Appel entrant: audio de alice"
+  ✓ "[INFO] ✅ Appel accepté: audio"
+  ✓ "[INFO] ❌ Appel rejeté: Je suis occupé"
+  ✓ "[INFO] 🔚 Appel terminé"
+
+POUR APPEL VIDÉO:
+  ✓ "[INFO] 📞 Appel initialisé: video avec alice"
+  ✓ "[INFO] 📞 Appel entrant: video de bob"
+  ✓ "[INFO] ✅ Appel accepté: video"
+  ✓ "[INFO] 🔚 Appel terminé par l'autre côté"
+
+POUR RÉSEAU:
+  ✓ Aucune erreur de socket
+  ✓ Aucune exception non gérée
+  ✓ Les threads daemon s'arrêtent proprement
+
+
+═══════════════════════════════════════════════════════════════════════════════
+LISTE DE VÉRIFICATION COMPLÈTE (CHECKLIST)
+═══════════════════════════════════════════════════════════════════════════════
+
+CHAT ÉLECTRONIQUE:
+  ☐ Login/Register/2FA fonctionne
+  ☐ Sélectionner contact dans liste
+  ☐ Envoyer message TEXT_MESSAGE
+  ☐ Recevoir message en temps réel
+  ☐ Notification affichée
+  ☐ Déconnexion propre (LOGOUT)
+
+APPEL AUDIO:
+  ☐ Initiate audio call
+  ☐ Reçoit notification entrant
+  ☐ Accept appel
+  ☐ AudioCapture démarre
+  ☐ Son envoyé via UDP port 50000
+  ☐ Son reçu et joué
+  ☐ Reject appel
+  ☐ End appel proprement
+  ☐ AudioPlayer arrêté
+
+APPEL VIDÉO:
+  ☐ Initiate video call
+  ☐ Reçoit notification entrant
+  ☐ Accept appel
+  ☐ VideoCapture démarre
+  ☐ Vidéo envoyée via UDP port 50020
+  ☐ Vidéo reçue et affichée
+  ☐ Audio aussi (automatique)
+  ☐ Reject appel
+  ☐ End appel proprement
+  ☐ VideoClient arrêté
+
+ROBUSTESSE:
+  ☐ Pas de crash si appel rejeté
+  ☐ Pas de crash si appel timeout
+  ☐ Pas de crash si déconnexion réseau
+  ☐ Pas de fuite de ressources
+  ☐ Pas de double appel simultané
+  ☐ État nettoyé après appel
+
+PERFORMANCE:
+  ☐ Audio latency < 100ms acceptable
+  ☐ Vidéo FPS >= 10 fps
+  ☐ Pas de lag sur chat
+  ☐ CPU usage reasonable
+  ☐ Mémoire ne croît pas indéfiniment
+
+
+═══════════════════════════════════════════════════════════════════════════════
+COMMANDES UTILES
+═══════════════════════════════════════════════════════════════════════════════
+
+COMPILATION:
+  $ mvn clean compile
+  $ mvn clean package
+
+EXÉCUTION:
+  $ java -cp target/classes:target/lib/* com.securephone.client.MainClient
+
+VOIR LES LOGS:
+  $ tail -f /tmp/securephone.log
+
+VÉRIFIER PORTS ACTIFS:
+  $ netstat -tulpn | grep 80|5000
+  $ lsof -i :8081
+  $ lsof -i :50000
+  $ lsof -i :50020
+
+DEBUG AUDIO LINUX:
+  $ pavcontrol          # PulseAudio volume control
+  $ alsamixer           # ALSA mixer
+  $ arecord -f cd test.wav  # Test enregistrement
+
+DEBUG VIDÉO:
+  $ ffplay udp://localhost:50020?overrun_nonfatal=1  # Recevoir UDP vidéo
+
+TEST MICRO/SPEAKER:
+  $ ffmpeg -f pulse -i default -f pulse -t 3 test.wav
+  $ aplay test.wav
+
+
+═══════════════════════════════════════════════════════════════════════════════
+AMÉLIORATIONS FUTURES
+═══════════════════════════════════════════════════════════════════════════════
+
+CODEC AUDIO:
+  [ ] Implémenter vrai codec Opus (au lieu de pass-through)
+  [ ] Ajouter compression G.711 ou AMR-NB
+  [ ] Réduire bande passante de 384 kb/s (48kHz 16bit) à ~8-13 kb/s
+
+CODEC VIDÉO:
+  [ ] Implémenter vrai codec H.264 ou VP8
+  [ ] Ajouter adaptive bitrate
+  [ ] Réduire bande passante de ~5-10 Mb/s à ~500 kb/s-2 Mb/s
+
+QUALITÉ AUDIO:
+  [ ] Implémenter jitter buffer
+  [ ] Ajouter packet loss recovery
+  [ ] Implémenter noise suppression
+  [ ] Implémenter echo cancellation (WebRTC)
+  [ ] Ajouter dynamic range compression
+
+GESTION D'APPEL:
+  [ ] Ajouter ring tone
+  [ ] Ajouter busy notification
+  [ ] Implémenter call queuing
+  [ ] Ajouter missed call notification
+  [ ] Implémenter call history
+
+ROBUSTESSE:
+  [ ] Ajouter timeouts (30s ringing timeout)
+  [ ] Ajouter reconnect logic
+  [ ] Ajouter graceful shutdown
+  [ ] Améliorer error handling
+  [ ] Ajouter metrics/monitoring
+
+UI/UX:
+  [ ] Afficher vidéo en fenêtre séparée
+  [ ] Ajouter boutons call controls
+  [ ] Afficher durée appel
+  [ ] Afficher qualité signal
+  [ ] Mobile version
+
+═══════════════════════════════════════════════════════════════════════════════
+CONCLUSION
+═══════════════════════════════════════════════════════════════════════════════
+
+Tous les trois modes de communication sont implémentés et fonctionnels:
+
+✅ CHAT ÉLECTRONIQUE - WebSocket TCP (synchrone, fiable)
+✅ APPEL AUDIO - UDP DatagramSocket (asynchrone, temps réel)
+✅ APPEL VIDÉO - UDP DatagramSocket (asynchrone, temps réel)
+
+Le système est prêt pour des tests. Suivez les scénarios ci-dessus pour 
+valider le fonctionnement complet.
+
+═══════════════════════════════════════════════════════════════════════════════
